@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { DrifthoundClient } from './client.js';
-import { runServer } from './server.js';
+import { runServer, runHttpServer } from './server.js';
 
 async function main(): Promise<void> {
   const baseUrl = process.env.DRIFTHOUND_API_URL;
@@ -21,7 +21,17 @@ async function main(): Promise<void> {
 
   const client = new DrifthoundClient(baseUrl, apiToken);
 
-  await runServer(client);
+  const portEnv = process.env.PORT;
+  if (portEnv) {
+    const port = parseInt(portEnv, 10);
+    if (isNaN(port) || port < 1 || port > 65535) {
+      console.error(`Error: PORT must be a valid port number, got: ${portEnv}`);
+      process.exit(1);
+    }
+    await runHttpServer(client, port);
+  } else {
+    await runServer(client);
+  }
 }
 
 main().catch((error) => {

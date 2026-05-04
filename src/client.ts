@@ -70,4 +70,14 @@ export class DrifthoundClient {
       `/api/v1/projects/${encodeURIComponent(projectKey)}/environments/${encodeURIComponent(envKey)}/drift`
     );
   }
+
+  async ping(): Promise<void> {
+    const url = new URL(`${this.baseUrl}/up`);
+    const response = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status} ${response.statusText}`);
+    }
+  }
 }
