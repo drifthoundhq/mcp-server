@@ -66,7 +66,16 @@ export async function runHttpServer(
       const url = new URL(req.url ?? '/', `http://localhost:${port}`);
 
       if (url.pathname !== '/healthz' && url.pathname !== '/readyz') {
-        console.error(`${new Date().toISOString()} ${req.method} ${url.pathname}`);
+        const start = Date.now();
+        res.on('finish', () => {
+          console.error(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: url.pathname,
+            status: res.statusCode,
+            durationMs: Date.now() - start,
+          }));
+        });
       }
 
       if (url.pathname === '/healthz') {
