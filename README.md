@@ -99,6 +99,34 @@ Where can I find the code to fix eks/production drift?
 
 Claude will use `get_environment_info` to get the repository URL and directory.
 
+## Kubernetes Deployment
+
+A Docker image is published to `ghcr.io/drifthoundhq/mcp-server` on every release. The server runs in HTTP mode when the `PORT` environment variable is set, exposing the MCP protocol at `/mcp`.
+
+The quickest way to deploy on Kubernetes is via the Helm chart published to the OCI registry:
+
+```bash
+helm install drifthound oci://ghcr.io/drifthoundhq/charts/drifthound-mcp-server \
+  --namespace drifthound \
+  --create-namespace \
+  --set drifthoundApiUrl=https://your-drifthound.example.com \
+  --set drifthoundApiToken=your-api-token
+```
+
+Once running, point Claude Code at the in-cluster endpoint:
+
+```json
+{
+  "mcpServers": {
+    "drifthound": {
+      "url": "http://drifthound-drifthound-mcp-server.drifthound.svc.cluster.local:3000/mcp"
+    }
+  }
+}
+```
+
+See the [Helm chart README](helm/drifthound-mcp-server/README.md) for the full configuration reference, external secret support, and port-forward instructions for local access.
+
 ## Development
 
 ```bash
