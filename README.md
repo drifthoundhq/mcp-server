@@ -11,6 +11,21 @@ An MCP (Model Context Protocol) server that enables Claude to discover and under
 
 ## Installation
 
+### GitHub Packages (recommended)
+
+The package is published to GitHub Packages. Because GitHub Packages requires authentication even for public packages, you need a GitHub personal access token with the `read:packages` scope.
+
+1. Add the following to your `~/.npmrc`:
+
+```
+@drifthoundhq:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
+```
+
+2. Use `npx` directly in your MCP client config — no global install needed (see below).
+
+### From source
+
 ```bash
 npm install
 npm run build
@@ -33,8 +48,8 @@ Add to your Claude Code settings (`~/.claude/settings.json`):
 {
   "mcpServers": {
     "drifthound": {
-      "command": "node",
-      "args": ["/path/to/drifthound-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@drifthoundhq/mcp-server"],
       "env": {
         "DRIFTHOUND_API_URL": "https://drifthound.example.com",
         "DRIFTHOUND_API_TOKEN": "your-api-token"
@@ -52,8 +67,8 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
 {
   "mcpServers": {
     "drifthound": {
-      "command": "node",
-      "args": ["/path/to/drifthound-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@drifthoundhq/mcp-server"],
       "env": {
         "DRIFTHOUND_API_URL": "https://drifthound.example.com",
         "DRIFTHOUND_API_TOKEN": "your-api-token"
