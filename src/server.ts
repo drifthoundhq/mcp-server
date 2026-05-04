@@ -1,5 +1,8 @@
+import { createServer as createHttpServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -20,12 +23,10 @@ export function createServer(client: DrifthoundClient): Server {
     }
   );
 
-  // List available tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return { tools };
   });
 
-  // Handle tool calls
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return handleToolCall(
       client,
@@ -42,7 +43,6 @@ export async function runServer(client: DrifthoundClient): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Handle shutdown gracefully
   process.on('SIGINT', async () => {
     await server.close();
     process.exit(0);
@@ -52,4 +52,87 @@ export async function runServer(client: DrifthoundClient): Promise<void> {
     await server.close();
     process.exit(0);
   });
+}
+
+export async function runHttpServer(client: DrifthoundClient, port: number): Promise<void> {
+  const transports = new Map<string, StreamableHTTPServerTransport>();
+
+  const httpServer = createHttpServer(async (req, res) => {
+    try {
+      const url = new URL(req.url ?? '/', `http://localhost:${port}`);
+
+      if (url.pathname === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok' }));
+        return;
+      }
+
+      if (url.pathname !== '/mcp') {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+
+      let body: unknown;
+      if (req.method === 'POST') {
+        const chunks: Buffer[] = [];
+        await new Promise<void>((resolve, reject) => {
+          req.on('data', (chunk: Buffer) => chunks.push(chunk));
+          req.on('end', resolve);
+          req.on('error', reject);
+        });
+        const raw = Buffer.concat(chunks).toString('utf-8');
+        if (raw) {
+          try {
+            body = JSON.parse(raw);
+          } catch {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+            return;
+          }
+        }
+      }
+
+      const sessionId = req.headers['mcp-session-id'] as string | undefined;
+
+      if (!sessionId) {
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+        });
+        transport.onclose = () => {
+          if (transport.sessionId) transports.delete(transport.sessionId);
+        };
+        const server = createServer(client);
+        await server.connect(transport);
+        await transport.handleRequest(req, res, body);
+        if (transport.sessionId) transports.set(transport.sessionId, transport);
+        return;
+      }
+
+      const transport = transports.get(sessionId);
+      if (!transport) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Session not found' }));
+        return;
+      }
+
+      await transport.handleRequest(req, res, body);
+    } catch (err) {
+      console.error('HTTP handler error:', err);
+      if (!res.headersSent) {
+        res.writeHead(500);
+        res.end();
+      }
+    }
+  });
+
+  await new Promise<void>((resolve) => {
+    httpServer.listen(port, () => {
+      console.error(`DriftHound MCP server (HTTP) listening on port ${port}`);
+      resolve();
+    });
+  });
+
+  process.on('SIGINT', () => { httpServer.close(); process.exit(0); });
+  process.on('SIGTERM', () => { httpServer.close(); process.exit(0); });
 }
