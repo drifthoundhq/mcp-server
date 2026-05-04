@@ -58,7 +58,7 @@ export async function getEnvironmentInfo(
     lines.push('```bash');
     lines.push(`git clone ${env.project.repository}`);
     lines.push(`cd <repo-name>/${env.directory}`);
-    lines.push('terragrunt plan');
+    lines.push('terraform plan   # or: terragrunt plan');
     lines.push('```');
   }
 

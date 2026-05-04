@@ -27,11 +27,18 @@ export class DrifthoundClient {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!response.ok) {
-      const error = await response.json() as ApiError;
-      throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+      let message = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const error = await response.json() as ApiError;
+        if (error.error) message = error.error;
+      } catch {
+        // non-JSON error body — keep the HTTP status message
+      }
+      throw new Error(message);
     }
 
     return response.json() as Promise<T>;
