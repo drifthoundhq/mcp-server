@@ -3,8 +3,9 @@ DriftHound MCP Server has been deployed.
 The MCP server is accessible within the cluster at:
   http://{{ include "drifthound-mcp-server.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}/mcp
 
-Health check endpoint:
-  http://{{ include "drifthound-mcp-server.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}/health
+Health endpoints:
+  http://{{ include "drifthound-mcp-server.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}/healthz  (liveness)
+  http://{{ include "drifthound-mcp-server.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}/readyz   (readiness)
 
 To configure Claude Code to use this server (from within the cluster), add to your MCP client config:
   {

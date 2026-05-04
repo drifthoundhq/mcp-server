@@ -1,6 +1,7 @@
 import { createServer as createHttpServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import pkg from '../package.json' with { type: 'json' };
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
@@ -14,7 +15,7 @@ export function createServer(client: DrifthoundClient): Server {
   const server = new Server(
     {
       name: 'drifthound-mcp',
-      version: '1.0.0',
+      version: pkg.version,
     },
     {
       capabilities: {
@@ -54,16 +55,31 @@ export async function runServer(client: DrifthoundClient): Promise<void> {
   });
 }
 
-export async function runHttpServer(client: DrifthoundClient, port: number): Promise<void> {
+export async function runHttpServer(
+  client: DrifthoundClient,
+  port: number
+): Promise<ReturnType<typeof createHttpServer>> {
   const transports = new Map<string, StreamableHTTPServerTransport>();
 
   const httpServer = createHttpServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', `http://localhost:${port}`);
 
-      if (url.pathname === '/health') {
+      if (url.pathname === '/healthz') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok' }));
+        return;
+      }
+
+      if (url.pathname === '/readyz') {
+        try {
+          await client.ping();
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'ok' }));
+        } catch (err) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'error', message: (err as Error).message }));
+        }
         return;
       }
 
@@ -135,4 +151,6 @@ export async function runHttpServer(client: DrifthoundClient, port: number): Pro
 
   process.on('SIGINT', () => { httpServer.close(); process.exit(0); });
   process.on('SIGTERM', () => { httpServer.close(); process.exit(0); });
+
+  return httpServer;
 }
