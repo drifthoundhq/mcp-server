@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -6,7 +6,7 @@ COPY tsconfig.json ./
 COPY src/ ./src/
 RUN npm run build
 
-FROM node:20-alpine AS production
+FROM node:24-alpine AS production
 
 # tini: proper PID 1 — forwards signals to Node and reaps zombie processes
 RUN apk add --no-cache tini
